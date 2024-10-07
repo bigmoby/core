@@ -1,0 +1,11 @@
+get_log:
+  target:
+    entity:
+      integration: ialarm
+  fields:
+    max_entries:
+      required: true
+      example: "25"
+      selector:
+        text:
+          type: number

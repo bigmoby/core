@@ -1565,7 +1565,7 @@ pyhomematic==0.1.77
 pyhomeworks==1.1.2
 
 # homeassistant.components.ialarm
-pyialarm==2.2.0
+pyialarm==2.3.0
 
 # homeassistant.components.icloud
 pyicloud==1.0.0

@@ -3,7 +3,6 @@
 import logging
 from typing import Any
 
-from pyialarm import IAlarm
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
@@ -11,6 +10,7 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 
 from .const import DEFAULT_PORT, DOMAIN
+from .pyialarm.pyialarm import IAlarm
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ DATA_SCHEMA = vol.Schema(
 
 async def _get_device_mac(hass: HomeAssistant, host, port):
     ialarm = IAlarm(host, port)
-    return await hass.async_add_executor_job(ialarm.get_mac)
+    return await ialarm.get_mac()
 
 
 class IAlarmConfigFlow(ConfigFlow, domain=DOMAIN):

@@ -18,5 +18,17 @@
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
     }
+  },
+  "services": {
+    "get_log": {
+      "name": "IAlarm log.",
+      "description": "Retrieve the last N log entries.",
+      "fields": {
+        "max_entries": {
+          "name": "Max entries.",
+          "description": "Specify the maximum number of log entries to retrieve."
+        }
+      }
+    }
   }
 }

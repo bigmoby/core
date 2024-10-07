@@ -4,17 +4,16 @@ from __future__ import annotations
 
 import asyncio
 
-from pyialarm import IAlarm
-
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_HOST, CONF_PORT, EVENT_HOMEASSISTANT_STOP, Platform
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import DATA_COORDINATOR, DOMAIN
-from .coordinator import IAlarmDataUpdateCoordinator
+from .coordinator import IAlarmCoordinator
+from .pyialarm.pyialarm import IAlarm
 
-PLATFORMS = [Platform.ALARM_CONTROL_PANEL]
+PLATFORMS = [Platform.ALARM_CONTROL_PANEL, Platform.SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -25,17 +24,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     try:
         async with asyncio.timeout(10):
-            mac = await hass.async_add_executor_job(ialarm.get_mac)
+            mac = await ialarm.get_mac()
     except (TimeoutError, ConnectionError) as ex:
         raise ConfigEntryNotReady from ex
 
-    coordinator = IAlarmDataUpdateCoordinator(hass, ialarm, mac)
-    await coordinator.async_config_entry_first_refresh()
+    statusCoordinator = IAlarmCoordinator(hass, ialarm, mac)
+
+    async def _async_on_hass_stop(_: Event) -> None:
+        """Close connection when hass stops."""
+        await statusCoordinator.async_shutdown()
+
+    entry.async_on_unload(
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_on_hass_stop)
+    )
+
+    await statusCoordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})
-
     hass.data[DOMAIN][entry.entry_id] = {
-        DATA_COORDINATOR: coordinator,
+        DATA_COORDINATOR: statusCoordinator,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

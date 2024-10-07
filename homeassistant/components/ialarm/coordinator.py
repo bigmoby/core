@@ -2,27 +2,26 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
-
-from pyialarm import IAlarm
 
 from homeassistant.components.alarm_control_panel import SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, IALARM_TO_HASS
+from .const import DOMAIN, IALARM_TO_HASS, IAlarmStatusType
+from .pyialarm.const import ZoneStatusType
+from .pyialarm.pyialarm import IAlarm
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class IAlarmDataUpdateCoordinator(DataUpdateCoordinator[None]):
+class IAlarmCoordinator(DataUpdateCoordinator[IAlarmStatusType]):
     """Class to manage fetching iAlarm data."""
 
     def __init__(self, hass: HomeAssistant, ialarm: IAlarm, mac: str) -> None:
         """Initialize global iAlarm data updater."""
         self.ialarm = ialarm
-        self.state: str | None = None
+        self.state: IAlarmStatusType | None = None
         self.host: str = ialarm.host
         self.mac = mac
 
@@ -33,17 +32,16 @@ class IAlarmDataUpdateCoordinator(DataUpdateCoordinator[None]):
             update_interval=SCAN_INTERVAL,
         )
 
-    def _update_data(self) -> None:
-        """Fetch data from iAlarm via sync functions."""
-        status = self.ialarm.get_status()
-        _LOGGER.debug("iAlarm status: %s", status)
-
-        self.state = IALARM_TO_HASS.get(status)
-
-    async def _async_update_data(self) -> None:
+    async def _async_update_data(self) -> IAlarmStatusType:
         """Fetch data from iAlarm."""
         try:
-            async with asyncio.timeout(10):
-                await self.hass.async_add_executor_job(self._update_data)
+            status = await self.ialarm.get_status()
+            zone_status: list[ZoneStatusType] = await self.ialarm.get_zone_status()
+            ialarm_status: IAlarmStatusType = IAlarmStatusType(
+                ialarm_status=IALARM_TO_HASS.get(status), zone_status_list=zone_status
+            )
+            self.state = ialarm_status
+            self.async_set_updated_data(ialarm_status)
         except ConnectionError as error:
             raise UpdateFailed(error) from error
+        return ialarm_status
